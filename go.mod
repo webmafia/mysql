@@ -1,6 +1,6 @@
 module github.com/webmafia/mysql
 
-go 1.24.0
+go 1.23.0
 
 // replace github.com/webmafia/fast => ../go-fast
 
