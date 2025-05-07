@@ -12,6 +12,10 @@ func (db *DB) Exec(ctx context.Context, query string, args ...any) (result sql.R
 		return db.execArgs(ctx, query, fast.Noescape(args))
 	}
 
+	if tx, ok := ctx.(*Tx); ok {
+		return tx.tx.ExecContext(ctx, query)
+	}
+
 	return db.db.ExecContext(ctx, query)
 }
 
@@ -24,6 +28,10 @@ func (db *DB) execArgs(ctx context.Context, query string, args []any) (result sq
 
 	if err = db.qb.buildQuery(dstQuery, dstArgs, query, args); err != nil {
 		return
+	}
+
+	if tx, ok := ctx.(*Tx); ok {
+		return tx.tx.ExecContext(ctx, dstQuery.String(), *dstArgs...)
 	}
 
 	return db.db.ExecContext(ctx, dstQuery.String(), *dstArgs...)
