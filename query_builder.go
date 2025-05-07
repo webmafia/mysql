@@ -4,7 +4,6 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/webmafia/fast"
 	"github.com/webmafia/fast/buffer"
 )
 
@@ -39,24 +38,7 @@ func (qb *queryBuilder) putArgs(args *[]any) {
 
 func (qb *queryBuilder) buildQuery(dstQuery *buffer.Buffer, dstArgs *[]any, query string, args []any) (err error) {
 	return dstQuery.Str().WritefCb(query, args, func(b *buffer.Buffer, c byte, arg any) (err error) {
-		switch v := fast.Noescape(arg).(type) {
-
-		case StringEncoder:
-			if v != nil {
-				v.EncodeString(b)
-			}
-
-		case QueryEncoder:
-			if v != nil {
-				v.EncodeQuery(b, dstArgs)
-			}
-
-		default:
-			*dstArgs = append(*dstArgs, v)
-			b.WriteByte('$')
-			b.Str().WriteInt(len(*dstArgs))
-		}
-
+		writeAny(b, dstArgs, arg)
 		return
 	})
 }

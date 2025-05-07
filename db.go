@@ -2,13 +2,15 @@ package mysql
 
 import (
 	"database/sql"
+	"sync"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 type DB struct {
-	db *sql.DB
-	qb queryBuilder
+	db     *sql.DB
+	qb     queryBuilder
+	txPool sync.Pool
 }
 
 func New(connStr string) (db *DB, err error) {
