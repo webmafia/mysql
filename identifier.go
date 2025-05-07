@@ -10,9 +10,9 @@ type Identifier string
 
 // EncodeString implements StringEncoder.
 func (t Identifier) EncodeString(b *buffer.Buffer) {
-	b.WriteByte('"')
+	b.WriteByte('`')
 	b.WriteString(string(t))
-	b.WriteByte('"')
+	b.WriteByte('`')
 }
 
 func (t Identifier) Col(col string) ChainedIdentifier {
