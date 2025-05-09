@@ -4,23 +4,59 @@ import (
 	"database/sql"
 	"sync"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 )
 
 type DB struct {
-	db     *sql.DB
-	qb     queryBuilder
-	txPool sync.Pool
+	db      *sql.DB
+	qb      queryBuilder
+	txPool  sync.Pool
+	valPool sync.Pool
 }
 
-func New(connStr string) (db *DB, err error) {
-	db = &DB{}
+// var defaultLogger = mysql.Logger(log.New(os.Stderr, "[mysql] ", log.Ldate|log.Ltime))
 
-	if db.db, err = sql.Open("mysql", connStr); err != nil {
+type Config = mysql.Config
+
+func NewConfig() *Config {
+	return mysql.NewConfig()
+}
+
+func New(cfg *Config) (db *DB, err error) {
+	db = &DB{}
+	c, err := mysql.NewConnector(cfg)
+
+	if err != nil {
 		return
 	}
 
+	// if cfg.Loc == nil {
+	// 	cfg.Loc = time.UTC
+	// }
+
+	// if cfg.MaxAllowedPacket <= 0 {
+	// 	cfg.MaxAllowedPacket = 64 << 20 // 64 MiB
+	// }
+
+	// if cfg.Logger == nil {
+	// 	cfg.Logger = defaultLogger
+	// }
+
+	// cfg.AllowNativePasswords = true
+	// cfg.CheckConnLiveness = true
+
+	db.db = sql.OpenDB(c)
 	return
+}
+
+func NewFromString(connStr string) (db *DB, err error) {
+	cfg, err := mysql.ParseDSN(connStr)
+
+	if err != nil {
+		return
+	}
+
+	return New(cfg)
 }
 
 func (db *DB) Close() error {

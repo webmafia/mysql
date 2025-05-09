@@ -28,8 +28,9 @@ func writeAny(b *buffer.Buffer, args *[]any, val any) {
 
 func writeQueryArg(b *buffer.Buffer, args *[]any, val any) {
 	*args = append(*fast.Noescape(args), fast.Noescape(val))
-	b.WriteByte('$')
-	b.Str().WriteInt(len(*args))
+	b.WriteByte('?')
+	// b.WriteByte('$')
+	// b.Str().WriteInt(len(*args))
 }
 
 func writeAnyIdentifier(b *buffer.Buffer, str any) {
@@ -50,7 +51,7 @@ func writeAnyIdentifier(b *buffer.Buffer, str any) {
 }
 
 func writeIdentifier(b *buffer.Buffer, str string) {
-	b.WriteByte('"')
+	b.WriteByte('`')
 	b.WriteString(str)
-	b.WriteByte('"')
+	b.WriteByte('`')
 }
