@@ -13,7 +13,7 @@ func (db *DB) Query(ctx context.Context, query string, args ...any) (rows *sql.R
 		return db.queryArgs(ctx, query, fast.Noescape(args))
 	}
 
-	return db.db.QueryContext(ctx, query)
+	return db.query(ctx, query)
 }
 
 func (db *DB) queryArgs(ctx context.Context, query string, args []any) (rows *sql.Rows, err error) {
@@ -27,7 +27,7 @@ func (db *DB) queryArgs(ctx context.Context, query string, args []any) (rows *sq
 		return
 	}
 
-	return db.db.QueryContext(ctx, dstQuery.String(), *dstArgs...)
+	return db.query(ctx, dstQuery.String(), *dstArgs...)
 }
 
 func (db *DB) QueryRow(ctx context.Context, query string, args ...any) (row *sql.Row) {
@@ -35,7 +35,7 @@ func (db *DB) QueryRow(ctx context.Context, query string, args ...any) (row *sql
 		return db.queryRowArgs(ctx, query, fast.Noescape(args))
 	}
 
-	return db.db.QueryRowContext(ctx, query)
+	return db.queryRow(ctx, query)
 }
 
 func (db *DB) queryRowArgs(ctx context.Context, query string, args []any) (row *sql.Row) {
@@ -49,7 +49,37 @@ func (db *DB) queryRowArgs(ctx context.Context, query string, args []any) (row *
 		return rowError(err)
 	}
 
-	return db.db.QueryRowContext(ctx, dstQuery.String(), *dstArgs...)
+	return db.queryRow(ctx, dstQuery.String(), *dstArgs...)
+}
+
+func (db *DB) query(ctx context.Context, query string, args ...any) (rows *sql.Rows, err error) {
+
+	switch c := ctx.(type) {
+
+	case *Tx:
+		return c.tx.QueryContext(ctx, query, args...)
+
+	case *Conn:
+		return c.conn.QueryContext(ctx, query, args...)
+
+	default:
+		return db.db.QueryContext(ctx, query, args...)
+	}
+}
+
+func (db *DB) queryRow(ctx context.Context, query string, args ...any) (row *sql.Row) {
+
+	switch c := ctx.(type) {
+
+	case *Tx:
+		return c.tx.QueryRowContext(ctx, query, args...)
+
+	case *Conn:
+		return c.conn.QueryRowContext(ctx, query, args...)
+
+	default:
+		return db.db.QueryRowContext(ctx, query, args...)
+	}
 }
 
 func rowError(err error) *sql.Row {

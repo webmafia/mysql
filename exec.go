@@ -12,11 +12,17 @@ func (db *DB) Exec(ctx context.Context, query string, args ...any) (result sql.R
 		return db.execArgs(ctx, query, fast.Noescape(args))
 	}
 
-	if tx, ok := ctx.(*Tx); ok {
-		return tx.tx.ExecContext(ctx, query)
-	}
+	switch c := ctx.(type) {
 
-	return db.db.ExecContext(ctx, query)
+	case *Tx:
+		return c.tx.ExecContext(ctx, query, args...)
+
+	case *Conn:
+		return c.conn.ExecContext(ctx, query, args...)
+
+	default:
+		return db.db.ExecContext(ctx, query, args...)
+	}
 }
 
 func (db *DB) execArgs(ctx context.Context, query string, args []any) (result sql.Result, err error) {
@@ -30,8 +36,13 @@ func (db *DB) execArgs(ctx context.Context, query string, args []any) (result sq
 		return
 	}
 
-	if tx, ok := ctx.(*Tx); ok {
-		return tx.tx.ExecContext(ctx, dstQuery.String(), *dstArgs...)
+	switch c := ctx.(type) {
+
+	case *Tx:
+		return c.tx.ExecContext(ctx, dstQuery.String(), *dstArgs...)
+
+	case *Conn:
+		return c.conn.ExecContext(ctx, dstQuery.String(), *dstArgs...)
 	}
 
 	return db.db.ExecContext(ctx, dstQuery.String(), *dstArgs...)
