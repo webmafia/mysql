@@ -114,11 +114,13 @@ func (tx *Tx) Release() (err error) {
 }
 
 func (tx *Tx) release() {
+	db := tx.db
+
 	tx.Context = nil
 	tx.db = nil
 	tx.tx = nil
 	tx.sp = 0
 	tx.closed = false
 
-	tx.db.txPool.Put(tx)
+	db.txPool.Put(tx)
 }
