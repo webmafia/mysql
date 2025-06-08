@@ -4,8 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
+	"strings"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/webmafia/fast/buffer"
+	"github.com/webmafia/lru"
 )
 
 var ErrReleasedTransaction = errors.New("tried to operate on a released transaction")
@@ -21,6 +25,8 @@ func (db *DB) Transaction(ctx context.Context, readOnly ...bool) (tx *Tx, err er
 	tx.db = db
 
 	if parent, ok := ctx.(*Tx); ok {
+		tx.child = true
+		tx.stmts = parent.stmts
 		tx.tx = parent.tx
 		tx.sp = parent.sp + 1
 
@@ -37,6 +43,18 @@ func (db *DB) Transaction(ctx context.Context, readOnly ...bool) (tx *Tx, err er
 		if tx.tx, err = db.db.BeginTx(ctx, opts); err != nil {
 			return
 		}
+
+		stmts, ok := db.lruPool.Get().(lru.LRU[uint64, *sql.Stmt])
+
+		if !ok {
+			stmts = lru.NewThreadSafe(64, func(_ uint64, stmt *sql.Stmt) {
+				if err := stmt.Close(); err != nil {
+					log.Println(err)
+				}
+			})
+		}
+
+		tx.stmts = stmts
 	}
 
 	return
@@ -48,7 +66,9 @@ type Tx struct {
 	context.Context
 	db     *DB
 	tx     *sql.Tx
+	stmts  lru.LRU[uint64, *sql.Stmt]
 	sp     savepoint
+	child  bool
 	closed bool
 }
 
@@ -116,11 +136,67 @@ func (tx *Tx) Release() (err error) {
 func (tx *Tx) release() {
 	db := tx.db
 
+	if !tx.child {
+		tx.stmts.Reset()
+		tx.db.lruPool.Put(tx.stmts)
+	} else {
+		tx.child = false
+	}
+
 	tx.Context = nil
 	tx.db = nil
 	tx.tx = nil
 	tx.sp = 0
 	tx.closed = false
+	tx.stmts = nil
 
 	db.txPool.Put(tx)
+}
+
+func (tx *Tx) exec(ctx context.Context, query string, args ...any) (_ sql.Result, err error) {
+	if len(args) == 0 {
+		return tx.tx.ExecContext(ctx, query)
+	}
+
+	stmt, err := tx.stmt(ctx, query)
+
+	if err != nil {
+		return
+	}
+
+	return stmt.ExecContext(ctx, args...)
+}
+
+func (tx *Tx) query(ctx context.Context, query string, args ...any) (_ *sql.Rows, err error) {
+	if len(args) == 0 {
+		return tx.tx.QueryContext(ctx, query)
+	}
+
+	stmt, err := tx.stmt(ctx, query)
+
+	if err != nil {
+		return
+	}
+
+	return stmt.QueryContext(ctx, args...)
+}
+
+func (tx *Tx) queryRow(ctx context.Context, query string, args ...any) *sql.Row {
+	if len(args) == 0 {
+		return tx.tx.QueryRowContext(ctx, query)
+	}
+
+	stmt, err := tx.stmt(ctx, query)
+
+	if err != nil {
+		return rowError(err)
+	}
+
+	return stmt.QueryRowContext(ctx, args...)
+}
+
+func (tx *Tx) stmt(ctx context.Context, query string) (*sql.Stmt, error) {
+	return tx.stmts.GetOrSet(xxhash.Sum64String(query), func(key uint64) (*sql.Stmt, error) {
+		return tx.tx.PrepareContext(ctx, strings.Clone(query))
+	})
 }

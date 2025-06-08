@@ -12,6 +12,7 @@ type DB struct {
 	qb      queryBuilder
 	txPool  sync.Pool
 	valPool sync.Pool
+	lruPool sync.Pool
 }
 
 // var defaultLogger = mysql.Logger(log.New(os.Stderr, "[mysql] ", log.Ldate|log.Ltime))
@@ -61,4 +62,8 @@ func NewFromString(connStr string) (db *DB, err error) {
 
 func (db *DB) Close() error {
 	return db.db.Close()
+}
+
+func (db *DB) Stats() sql.DBStats {
+	return db.db.Stats()
 }

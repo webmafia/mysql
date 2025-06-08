@@ -15,7 +15,7 @@ func (db *DB) Exec(ctx context.Context, query string, args ...any) (result sql.R
 	switch c := ctx.(type) {
 
 	case *Tx:
-		return c.tx.ExecContext(ctx, query, args...)
+		return c.exec(ctx, query, args...)
 
 	case *Conn:
 		return c.conn.ExecContext(ctx, query, args...)
@@ -39,7 +39,7 @@ func (db *DB) execArgs(ctx context.Context, query string, args []any) (result sq
 	switch c := ctx.(type) {
 
 	case *Tx:
-		return c.tx.ExecContext(ctx, dstQuery.String(), *dstArgs...)
+		return c.exec(ctx, dstQuery.String(), *dstArgs...)
 
 	case *Conn:
 		return c.conn.ExecContext(ctx, dstQuery.String(), *dstArgs...)

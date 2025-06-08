@@ -57,7 +57,7 @@ func (db *DB) query(ctx context.Context, query string, args ...any) (rows *sql.R
 	switch c := ctx.(type) {
 
 	case *Tx:
-		return c.tx.QueryContext(ctx, query, args...)
+		return c.query(ctx, query, args...)
 
 	case *Conn:
 		return c.conn.QueryContext(ctx, query, args...)
@@ -72,7 +72,7 @@ func (db *DB) queryRow(ctx context.Context, query string, args ...any) (row *sql
 	switch c := ctx.(type) {
 
 	case *Tx:
-		return c.tx.QueryRowContext(ctx, query, args...)
+		return c.queryRow(ctx, query, args...)
 
 	case *Conn:
 		return c.conn.QueryRowContext(ctx, query, args...)
