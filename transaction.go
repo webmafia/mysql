@@ -102,6 +102,10 @@ func (tx *Tx) Commit() (err error) {
 		return ErrReleasedTransaction
 	}
 
+	if tx.sp > 0 {
+		return
+	}
+
 	if err = tx.tx.Commit(); err != nil {
 		return
 	}
