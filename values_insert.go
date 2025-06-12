@@ -9,6 +9,7 @@ import (
 
 type InsertOptions struct {
 	OnConflict func(vals *Values) EncodeQuery
+	Ignore     bool // Ignore any errors.
 }
 
 func (db *DB) InsertValues(ctx context.Context, table StringEncoder, vals *Values, options ...InsertOptions) (count int64, err error) {
@@ -17,15 +18,26 @@ func (db *DB) InsertValues(ctx context.Context, table StringEncoder, vals *Value
 	}
 
 	var onConflict QueryEncoder = queryEncoderNoop
+	var ignore bool
 
 	if len(options) > 0 {
 		if options[0].OnConflict != nil {
 			onConflict = options[0].OnConflict(vals)
 		}
+
+		ignore = options[0].Ignore
+	}
+
+	var query string
+
+	if ignore {
+		query = "INSERT IGNORE INTO %T SET %T %T"
+	} else {
+		query = "INSERT INTO %T SET %T %T"
 	}
 
 	cmd, err := db.Exec(ctx,
-		"INSERT INTO %T SET %T %T",
+		query,
 		table,
 		vals,
 		onConflict,
