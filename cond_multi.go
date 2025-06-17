@@ -32,6 +32,10 @@ func Or(ops ...QueryEncoder) MultiOr {
 
 // Merges multiple QueryEncoders to a single QueryEncoder, with an optional delimiter (default newline).
 func Multi(ops []QueryEncoder, del ...string) QueryEncoder {
+	if len(ops) == 0 {
+		return queryEncoderNoop
+	}
+
 	m := &multi{
 		ops: ops,
 	}
@@ -54,6 +58,12 @@ type multi struct {
 	ops  []QueryEncoder
 	del  string
 	cond bool
+}
+
+// And implements MultiStmt.
+func (m *multi) Add(v QueryEncoder) MultiAnd {
+	m.ops = append(m.ops, v)
+	return m
 }
 
 // And implements MultiAnd.
